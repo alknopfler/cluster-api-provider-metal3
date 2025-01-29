@@ -267,10 +267,13 @@ func updateNode(w http.ResponseWriter, r *http.Request) {
 		setupLog.Error(err, "Invalid JSON in request body")
 		return
 	}
+	setupLog.Info("----> VALUE requestData full", "requestData full: ", requestData)
 
 	setupLog.Info("Decoded request data", "nodeName", requestData.NodeName, "providerID", requestData.ProviderID)
 	nodeLabels := requestData.Labels
+	setupLog.Info("----> VALUE requestData.Labels", "nodeLabels: ", nodeLabels)
 	nodeLabels["metal3.io/uuid"] = requestData.UUID
+	setupLog.Info("----> VALUE requestData.Labels", "nodeLabels-2time: ", nodeLabels)
 	namespace := requestData.Namespace
 	clusterName := requestData.ClusterName
 	resourceName := fmt.Sprintf("%s/%s", namespace, clusterName)
@@ -278,19 +281,23 @@ func updateNode(w http.ResponseWriter, r *http.Request) {
 	_, isControlPlane := nodeLabels["cluster.x-k8s.io/control-plane"]
 
 	workloadActivated, ok := workloadListenerActivations[resourceName]
+	setupLog.Info("----> VALUE workloadActivated-1time", "workloadActivated-1time: ", workloadActivated)
 	if !ok {
+		setupLog.Info("----> ERROR workload-cluster-does-not-exist", "ok: ", ok)
 		http.Error(w, "Workload Cluster does not exist", http.StatusInternalServerError)
 		return
 	}
-
+	setupLog.Info("----> VALUE resourceName", "resourceName: ", resourceName, "isControlPlane: ", isControlPlane)
 	listener := cloudMgr.GetResourceGroup(resourceName)
 
 	if isControlPlane {
 		// Add node role control-plane label
 		nodeLabels["node-role.kubernetes.io/control-plane"] = ""
+		setupLog.Info("----> VALUE requestData.Labels", "nodeLabels-3time: ", nodeLabels)
 		caSecretName := fmt.Sprintf("%s-ca", clusterName)
 		caCertRaw, caKeyRaw, err := getSecretKeyAndCert(ctx, bootstrapClient, requestData.Namespace, caSecretName)
 		if err != nil {
+			setupLog.Info("----> ERROR internal server error line298", "error: ", err.Error())
 			logLine := fmt.Sprintf("Error adding node %s", nodeName)
 			http.Error(w, logLine, http.StatusInternalServerError)
 			setupLog.Error(err, "Failed to get ca secrets for cluster", "cluster name", resourceName)
@@ -299,6 +306,7 @@ func updateNode(w http.ResponseWriter, r *http.Request) {
 
 		caCert, err := certs.DecodeCertPEM(caCertRaw)
 		if err != nil {
+			setupLog.Info("----> ERROR decodeCertPEM", "error: ", err.Error())
 			http.Error(w, "Failed to add API server", http.StatusInternalServerError)
 			setupLog.Error(err, "failed to decode caCertPEM")
 			return
@@ -306,26 +314,33 @@ func updateNode(w http.ResponseWriter, r *http.Request) {
 
 		caKey, err := certs.DecodePrivateKeyPEM(caKeyRaw)
 		if err != nil {
+			setupLog.Info("----> ERROR ddecodePrivateKeyPEM", "error: ", err.Error())
 			http.Error(w, "Failed to generate etcdKey", http.StatusInternalServerError)
 			setupLog.Error(err, "failed to decode caKeyPEM")
 			return
 		}
 
 		apiServerPodName := nodeName
+		setupLog.Info("----> VALUE apiServerPodName", "apiserverPodNAME: ", apiServerPodName)
 		err = apiServerMux.AddAPIServer(resourceName, apiServerPodName, caCert, caKey.(*rsa.PrivateKey))
 		if err != nil {
+			setupLog.Info("----> ERROR addAPIServer", "error: ", err.Error())
 			http.Error(w, "Failed to add API server", http.StatusInternalServerError)
 			setupLog.Error(err, "failed to add API server")
 			return
 		}
 		// For first CP, we need to install some cluster-wide resources
 		if !workloadActivated {
+			setupLog.Info("----> PASS INTO !WorkloadActivated", "workloadActivated: ", workloadActivated, "resourceName: ", resourceName, "requestData.K8sVersion: ", requestData.K8sVersion)
 			activateCluster(resourceName, w, requestData.K8sVersion)
+			setupLog.Info("----> PASS OUT activateCluster", "workloadActivated: ", workloadActivated)
 		}
 		workloadListenerActivations[resourceName] = true
+		setupLog.Info("----> VALUE TRUE workloadListenerActivations", "workloadListenerActivations: ", workloadListenerActivations)
 	}
 
 	if activated := workloadListenerActivations[resourceName]; !activated {
+		setupLog.Info("----> ERROR workload-cluster-not-activated", "activated: ", activated, "resourceName: ", resourceName)
 		http.Error(w, "Workload Cluster has not been activated", http.StatusInternalServerError)
 		return
 	}
@@ -384,9 +399,11 @@ func updateNode(w http.ResponseWriter, r *http.Request) {
 			},
 		},
 	}
-
+	setupLog.Info("----> VALUE NODE value", "Node-value: ", node)
 	err := c.Create(ctx, node)
+	setupLog.Info("----> PASS createNode")
 	if err != nil {
+		setupLog.Info("----> ERROR error adding node", "error: ", err.Error(), "nodeName: ", nodeName)
 		if apierrors.IsAlreadyExists(err) {
 			setupLog.Info("Node already exists", "nodeName", nodeName)
 			w.WriteHeader(http.StatusOK)
