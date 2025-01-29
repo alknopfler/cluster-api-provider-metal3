@@ -492,15 +492,18 @@ func updateNode(w http.ResponseWriter, r *http.Request) {
 		Labels:          etcdLabels,
 		TransactionTime: timeOutput,
 	})
+	setupLog.Info("----> VALUE etcdPOD", "etcdPod: ", etcdPod)
 
 	if err := c.Get(ctx, client.ObjectKeyFromObject(etcdPod), etcdPod); err != nil {
 		if !apierrors.IsNotFound(err) {
+			setupLog.Info("----> ERROR failed to get etcd pod", "error: ", err.Error())
 			setupLog.Error(err, "failed to get etcd pod")
 			http.Error(w, "", http.StatusInternalServerError)
 			return
 		}
 
 		// Gets info about the current etcd cluster, if any.
+		setupLog.Info("----> GET INfo about current etcd cluster if any", "etcdInfoMap", etcdInfoMap[resourceName])
 		info, ok := etcdInfoMap[resourceName]
 		if !ok {
 			info = etcdInfo{}
@@ -511,6 +514,7 @@ func updateNode(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
+		setupLog.Info("----> GET INfo about current etcd cluster if any", "info", info)
 
 		// Computes a unique memberID.
 		var memberID string
@@ -520,13 +524,14 @@ func updateNode(w http.ResponseWriter, r *http.Request) {
 				break
 			}
 		}
+		setupLog.Info("----> GET memberID", "memberID", memberID)
 
 		// Annotate the pod with the info about the etcd cluster.
 		etcdPod.Annotations = map[string]string{
 			EtcdClusterIDAnnotationName: info.clusterID,
 			EtcdMemberIDAnnotationName:  memberID,
 		}
-
+		setupLog.Info("----> GET etcPodAnnotations", "etcdPodAnnotations", etcdPod.Annotations)
 		// If the etcd cluster is being created it doesn't have a leader yet, so set this member as a leader.
 		if info.leaderID == "" {
 			etcdPod.Annotations[EtcdLeaderFromAnnotationName] = time.Now().Format(time.RFC3339)
@@ -534,52 +539,62 @@ func updateNode(w http.ResponseWriter, r *http.Request) {
 
 		etcdInfoMap[resourceName] = info
 
+		setupLog.Info("----> GET etcInfoMap", "etcInfoMap", etcdInfoMap[resourceName])
 		if err := c.Create(ctx, etcdPod); err != nil && !apierrors.IsAlreadyExists(err) {
+			setupLog.Info("----> ERROR failed to create etcd pod, and return", "error", err.Error())
 			setupLog.Error(err, "failed to create etcd pod")
 			http.Error(w, "Failed to create etcd pod", http.StatusInternalServerError)
 			return
 		}
 	}
-
+	setupLog.Info("----> PASS adding etcdMember")
 	err = apiServerMux.AddEtcdMember(resourceName, nodeName, etcdCert, etcdKey.(*rsa.PrivateKey))
 	if err != nil {
+		setupLog.Info("----> ERROR failed to add etcd member, and return ", "error", err.Error())
 		setupLog.Error(err, "failed to add etcd member")
 		http.Error(w, "", http.StatusInternalServerError)
 		return
 	}
 
+	setupLog.Info("----> PASS to createControlPlanePod-kube-apiserver")
 	// Create the kube-apiserver pod
 	if err := createControlPlanePod(ctx, c, "kube-apiserver", FakePod{
 		PodName:         fmt.Sprintf("kube-apiserver-%s", nodeName),
 		NodeName:        nodeName,
 		TransactionTime: timeOutput,
 	}); err != nil {
+		setupLog.Info("----> ERROR  failed to create kube-apiserver Pod", "error", err.Error())
 		setupLog.Error(err, "failed to create kube-apiserver pod")
 		http.Error(w, "", http.StatusInternalServerError)
 		return
 	}
 
+	setupLog.Info("----> PASS to createControlPlanePod-kube-controller-manager")
 	// Create the kube-controller-manager
 	if err := createControlPlanePod(ctx, c, "kube-controller-manager", FakePod{
 		PodName:         fmt.Sprintf("kube-controller-manager-%s", nodeName),
 		NodeName:        nodeName,
 		TransactionTime: timeOutput,
 	}); err != nil {
+		setupLog.Info("----> ERROR failed to create kube-controller-manager Pod", "error", err.Error())
 		setupLog.Error(err, "failed to create kube-controller-manager pod")
 		http.Error(w, "", http.StatusInternalServerError)
 		return
 	}
 
+	setupLog.Info("----> PASS to createControlPlanePod-kube-scheduler")
 	// Create the kube-scheduler
 	if err := createControlPlanePod(ctx, c, "kube-scheduler", FakePod{
 		PodName:         fmt.Sprintf("kube-scheduler-%s", nodeName),
 		NodeName:        nodeName,
 		TransactionTime: timeOutput,
 	}); err != nil {
+		setupLog.Info("----> ERROR failed to create kube-scheduler Pod", "error", err.Error())
 		setupLog.Error(err, "failed to create scheduler Pod")
 		http.Error(w, "", http.StatusInternalServerError)
 		return
 	}
+	setupLog.Info("----> FINAL UPDATE")
 }
 
 func main() {

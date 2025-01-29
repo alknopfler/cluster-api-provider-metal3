@@ -179,7 +179,7 @@ func main() {
 				setupLog.Info(fmt.Sprintf("PUT request failed with status: %s", resp.Status))
 				return reconcile.Result{}, fmt.Errorf("PUT request failed with status: %s", resp.Status)
 			}
-			setupLog.Info("----> passed PUT request failed with status")
+			setupLog.Info("----> passed PUT so finished the reconcile loop")
 
 			return reconcile.Result{}, nil
 		})); err != nil {
