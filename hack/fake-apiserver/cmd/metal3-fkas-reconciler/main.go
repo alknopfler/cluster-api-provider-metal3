@@ -79,7 +79,7 @@ func main() {
 			setupLog.Info("----> passed getClient get bmh: ")
 			// Check if the state has changed to "provisioned"
 			if bmh.Status.Provisioning.State != "provisioned" {
-				setupLog.Info("----> ERROR error provisioning or provisioned state: ", req.Name, " ", req.Namespace)
+				setupLog.Info("----> ERROR error provisioning or provisioned state:", req.Name, req.Namespace)
 				setupLog.V(4).Info(fmt.Sprintf("BMH %s/%s state is not in 'provisioning' or 'provisioned' state.", req.Namespace, req.Name))
 				return reconcile.Result{}, nil
 			}
