@@ -354,7 +354,7 @@ func updateNode(w http.ResponseWriter, r *http.Request) {
 			Labels: nodeLabels,
 		},
 		Spec: corev1.NodeSpec{
-			ProviderID: requestData.ProviderID,
+			ProviderID: "metal3://" + requestData.UUID,
 		},
 		Status: corev1.NodeStatus{
 			Conditions: []corev1.NodeCondition{
