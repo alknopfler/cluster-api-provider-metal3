@@ -194,4 +194,5 @@ func main() {
 		setupLog.Info("----> ERROR starting manager", "Error: ", err.Error())
 		setupLog.Error(err, "Error starting manager")
 	}
+	setupLog.Info("finishing controller...")
 }
