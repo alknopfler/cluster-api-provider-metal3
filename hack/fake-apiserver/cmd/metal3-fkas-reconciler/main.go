@@ -137,8 +137,7 @@ func main() {
 				return reconcile.Result{}, err
 			}
 
-			//providerID := m3m.Spec.ProviderID
-			providerID := "metal3://" + bmh.ObjectMeta.UID
+			providerID := m3m.Spec.ProviderID
 			setupLog.Info("----> VALUE providerID", "providerID", providerID)
 			url := "http://localhost:3333/updateNode"
 			requestData := map[string]interface{}{
