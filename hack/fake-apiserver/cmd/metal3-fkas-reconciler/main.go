@@ -88,6 +88,7 @@ func main() {
 			setupLog.Info("----> VALUE UUID: ", "uid", uuid)
 
 			if bmh.Spec.ConsumerRef == nil {
+				setupLog.Info("----> ERROR no consumer reference found")
 				return reconcile.Result{}, err
 			}
 			m3m := &infrav1.Metal3Machine{}
