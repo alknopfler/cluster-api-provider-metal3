@@ -28,7 +28,7 @@ func main() {
 	debug := os.Getenv("DEBUG")
 	logLevel := zapcore.InfoLevel // Default log level
 	if debug == "true" {
-		logLevel = zapcore.DebugLevel // Set log level to Debug if DEBUG=true
+		logLevel = zapcore.ErrorLevel // Set log level to Debug if DEBUG=true
 	}
 	log.SetLogger(zap.New(zap.UseDevMode(true), zap.Level(logLevel)))
 
